@@ -436,31 +436,27 @@ document.getElementById("btnEnableNotifications").onclick = async () => {
     btn.innerText = "BEKLEYİN...";
 
     try {
-        // 1. Veritabanından anahtarları çek
+        // 1. Ayarları DB'den çek
         const snapVapid = await get(ref(db, "settings/vapidKey"));
         const snapSender = await get(ref(db, "settings/messagingSenderId"));
         
-        if (!snapVapid.exists() || !snapSender.exists()) {
-            btn.innerText = "AYAR YOK";
-            console.error("Firebase settings eksik!");
-            return;
-        }
+        if (!snapVapid.exists()) { throw new Error("VAPID KEY BULUNAMADI!"); }
 
-        const vKey = snapVapid.val();
+        const vKey = snapVapid.val().trim(); // Boşlukları temizle
         const sId = snapSender.val();
 
-        // 2. Önce Service Worker'ı kaydet (Veya mevcut kaydı al)
-        const registration = await navigator.serviceWorker.register(`./firebase-messaging-sw.js?senderId=${sId}`);
+        // 2. Messaging nesnesinin varlığından emin ol
+        const currentMessaging = getMessaging(app); 
+
+        // 3. Service Worker Kaydı (Noktayı kaldırıp dene)
+        const registration = await navigator.serviceWorker.register('/firebase-messaging-sw.js?senderId=' + sId);
         
-        // 3. Tarayıcıdan izin iste
+        // 4. İzin İste
         const permission = await Notification.requestPermission();
         
         if (permission === "granted") {
-            // 4. KRİTİK: SW'nin aktif olmasını bekle (Hata burdan çıkıyor olabilir)
-            await navigator.serviceWorker.ready;
-
-            // 5. Token alırken SW kaydını da parametre olarak gönder
-            const token = await getToken(messaging, { 
+            // 5. Token Al
+            const token = await getToken(currentMessaging, { 
                 vapidKey: vKey,
                 serviceWorkerRegistration: registration 
             });
@@ -473,15 +469,16 @@ document.getElementById("btnEnableNotifications").onclick = async () => {
                 btn.style.background = "var(--neon-green)";
                 btn.innerText = "BİLDİRİMLER AÇIK";
                 btn.disabled = true;
-                alert("Elite Bildirim Sistemi Aktif!");
+                alert("BAŞARILI: Bildirimler aktif!");
             }
         } else {
-            btn.innerText = "İZİN YOK";
+            btn.innerText = "İZİN REDDEDİLDİ";
         }
     } catch (error) {
-        console.error("FCM DETAYLI HATA:", error);
+        console.error(error);
         btn.innerText = "HATA!";
-        // Konsolda tam olarak ne hatası veriyor? (Örn: messaging/invalid-vapid-key)
+        // TELEFONDA HATAYI GÖRMEK İÇİN:
+        alert("SİSTEM HATASI: " + error.message); 
     }
 };
 window.closeProfileModal = function() { document.getElementById("profileModal").style.display = "none"; }
