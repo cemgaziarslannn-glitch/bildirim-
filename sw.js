@@ -1,4 +1,4 @@
-const CACHE_NAME = "cga-pwa-v26"; // Versiyonu artırdık
+const CACHE_NAME = "cga-pwa-v27"; // Versiyonu artırdık
 
 const CORE_FILES = [
   "/",
