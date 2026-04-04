@@ -1,31 +1,34 @@
-// 1. URL'den gelen senderId'yi yakala (Dinamik kimlik kartı)
+// 1. URL'den gelen senderId'yi yakala
 const urlParams = new URLSearchParams(location.search);
 const dynamicSenderId = urlParams.get('senderId');
 
-// Firebase Kütüphaneleri (Compat versiyonu SW için daha stabildir)
-importScripts('https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js');
-importScripts('https://www.gstatic.com/firebasejs/10.7.1/firebase-messaging-compat.js');
+// 2. Kütüphaneleri en güncel ve stabil yoldan çek
+importScripts('https://www.gstatic.com/firebasejs/10.10.0/firebase-app-compat.js');
+importScripts('https://www.gstatic.com/firebasejs/10.10.0/firebase-messaging-compat.js');
 
+// 3. Kontrol ve Başlatma
 if (dynamicSenderId) {
-    // 2. Sadece Sender ID ile Firebase'i uyandır
-    firebase.initializeApp({
-        messagingSenderId: dynamicSenderId
-    });
+    try {
+        firebase.initializeApp({
+            messagingSenderId: dynamicSenderId
+        });
 
-    const messaging = firebase.messaging();
+        const messaging = firebase.messaging();
 
-    // Arka planda mesaj geldiğinde çalışacak kısım
-    messaging.onBackgroundMessage((payload) => {
-        console.log('Arka plan bildirimi:', payload);
-        
-        const notificationTitle = payload.notification.title || "CGA GÜVENLİK SİSTEMİ";
-        const notificationOptions = {
-            body: payload.notification.body,
-            icon: '/icon.png', // Varsa logonun yolu
-            badge: '/icon.png',
-            vibrate: [200, 100, 200] // Telefonu titret
-        };
+        messaging.onBackgroundMessage((payload) => {
+            console.log('Arka plan mesajı:', payload);
+            
+            const title = payload.notification.title || "CGA GÜVENLİK SİSTEMİ";
+            const options = {
+                body: payload.notification.body,
+                icon: './icon-192.png', // Buradaki yolu kendi logona göre düzelt
+                badge: './icon-192.png',
+                vibrate: [200, 100, 200]
+            };
 
-        self.registration.showNotification(notificationTitle, notificationOptions);
-    });
+            self.registration.showNotification(title, options);
+        });
+    } catch (err) {
+        console.error("SW Initialize Hatası:", err);
+    }
 }
