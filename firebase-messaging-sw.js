@@ -1,34 +1,46 @@
-// 1. URL'den gelen senderId'yi yakala
-const urlParams = new URLSearchParams(location.search);
-const dynamicSenderId = urlParams.get('senderId');
+// --- MERKEZİ SİSTEM AYARLARI ---
+const MERKEZ_SENDER_ID = "512943111807";
+const MERKEZ_VAPID_KEY = "BMK1Y0cuslskfRCbVPzD0FZ0PBEAGuS3BqhNKHrs0Ylr9cYPYxo-PZ6C5Piph4Mg6g1jrF4cBGUCrWeKHzM7TOU";
 
-// 2. Kütüphaneleri en güncel ve stabil yoldan çek
-importScripts('https://www.gstatic.com/firebasejs/10.10.0/firebase-app-compat.js');
-importScripts('https://www.gstatic.com/firebasejs/10.10.0/firebase-messaging-compat.js');
+document.getElementById("btnEnableNotifications").onclick = async () => {
+    const btn = document.getElementById("btnEnableNotifications");
+    btn.innerText = "BEKLEYİN...";
 
-// 3. Kontrol ve Başlatma
-if (dynamicSenderId) {
     try {
-        firebase.initializeApp({
-            messagingSenderId: dynamicSenderId
-        });
+        // Mevcut app üzerinden değil, MERKEZ üzerinden mesajlaşmayı başlat
+        const currentMessaging = getMessaging(app); 
 
-        const messaging = firebase.messaging();
+        // Service Worker'ı MERKEZ kimliğiyle kaydet
+        const registration = await navigator.serviceWorker.register('./firebase-messaging-sw.js');
+        
+        const permission = await Notification.requestPermission();
+        
+        if (permission === "granted") {
+            // Token'ı MERKEZ'den al
+            const token = await getToken(currentMessaging, { 
+                vapidKey: MERKEZ_VAPID_KEY,
+                serviceWorkerRegistration: registration 
+            });
 
-        messaging.onBackgroundMessage((payload) => {
-            console.log('Arka plan mesajı:', payload);
-            
-            const title = payload.notification.title || "CGA GÜVENLİK SİSTEMİ";
-            const options = {
-                body: payload.notification.body,
-                icon: './icon-192.png', // Buradaki yolu kendi logona göre düzelt
-                badge: './icon-192.png',
-                vibrate: [200, 100, 200]
-            };
+            if (token) {
+                // Token'ı kullanıcı kaydına ekle
+                await update(ref(db, `users/${currentUser}`), {
+                    fcmToken: token,
+                    notificationsEnabled: true
+                });
 
-            self.registration.showNotification(title, options);
-        });
-    } catch (err) {
-        console.error("SW Initialize Hatası:", err);
+                btn.style.background = "var(--neon-green)";
+                btn.innerText = "BİLDİRİMLER AÇIK";
+                btn.disabled = true;
+                alert("SİSTEM AKTİF: Artık Merkez üzerinden bildirim alacaksınız!");
+                console.log("Yeni Uyumlu Token:", token);
+            }
+        } else {
+            btn.innerText = "İZİN REDDEDİLDİ";
+        }
+    } catch (error) {
+        console.error("Token Hatası:", error);
+        btn.innerText = "HATA!";
+        alert("KRİTİK HATA: " + error.message);
     }
-}
+};
