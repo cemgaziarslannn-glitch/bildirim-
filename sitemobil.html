@@ -431,37 +431,22 @@ window.openProfileModal = async function() {
 
 // AKTİF ET Butonuna tıklandığında çalışacak kod
 // --- DİNAMİK VAPID VE BİLDİRİM SİSTEMİ ---
+// --- MERKEZİ SİSTEM AYARLARI (SABİT) ---
+const MERKEZ_SENDER_ID = "512943111807"; 
+const MERKEZ_VAPID_KEY = "BMK1Y0cuslskfRCbVPzD0FZ0PBEAGuS3BqhNKHrs0Ylr9cYPYxo-PZ6C5Piph4Mg6g1jrF4cBGUCrWeKHzM7TOU";
+
 document.getElementById("btnEnableNotifications").onclick = async () => {
     const btn = document.getElementById("btnEnableNotifications");
     btn.innerText = "BEKLEYİN...";
-
     try {
-        // 1. Ayarları DB'den çek
-        const snapVapid = await get(ref(db, "settings/vapidKey"));
-        const snapSender = await get(ref(db, "settings/messagingSenderId"));
-        
-        if (!snapVapid.exists()) { throw new Error("VAPID KEY BULUNAMADI!"); }
-
-        const vKey = snapVapid.val().trim(); // Boşlukları temizle
-        const sId = snapSender.val();
-
-        // 2. Messaging nesnesinin varlığından emin ol
         const currentMessaging = getMessaging(app); 
-
-        // 3. Service Worker Kaydı (Noktayı kaldırıp dene)
-       // En garantisi bu yoldur:
-const registration = await navigator.serviceWorker.register('./firebase-messaging-sw.js?senderId=' + sId);
-        
-        // 4. İzin İste
+        const registration = await navigator.serviceWorker.register('./firebase-messaging-sw.js?senderId=' + MERKEZ_SENDER_ID);
         const permission = await Notification.requestPermission();
-        
         if (permission === "granted") {
-            // 5. Token Al
             const token = await getToken(currentMessaging, { 
-                vapidKey: vKey,
+                vapidKey: MERKEZ_VAPID_KEY,
                 serviceWorkerRegistration: registration 
             });
-
             if (token) {
                 await update(ref(db, `users/${currentUser}`), {
                     fcmToken: token,
@@ -470,7 +455,8 @@ const registration = await navigator.serviceWorker.register('./firebase-messagin
                 btn.style.background = "var(--neon-green)";
                 btn.innerText = "BİLDİRİMLER AÇIK";
                 btn.disabled = true;
-                alert("BAŞARILI: Bildirimler aktif!");
+                alert("BAŞARILI: Bildirimler MERKEZ üzerinden aktif!");
+                console.log("Yeni Uyumlu Token:", token);
             }
         } else {
             btn.innerText = "İZİN REDDEDİLDİ";
@@ -478,7 +464,6 @@ const registration = await navigator.serviceWorker.register('./firebase-messagin
     } catch (error) {
         console.error(error);
         btn.innerText = "HATA!";
-        // TELEFONDA HATAYI GÖRMEK İÇİN:
         alert("SİSTEM HATASI: " + error.message); 
     }
 };
