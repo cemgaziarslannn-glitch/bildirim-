@@ -1,46 +1,40 @@
-// --- MERKEZİ SİSTEM AYARLARI ---
-const MERKEZ_SENDER_ID = "512943111807";
-const MERKEZ_VAPID_KEY = "BMK1Y0cuslskfRCbVPzD0FZ0PBEAGuS3BqhNKHrs0Ylr9cYPYxo-PZ6C5Piph4Mg6g1jrF4cBGUCrWeKHzM7TOU";
+importScripts('https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js');
+importScripts('https://www.gstatic.com/firebasejs/10.7.1/firebase-messaging-compat.js');
 
-document.getElementById("btnEnableNotifications").onclick = async () => {
-    const btn = document.getElementById("btnEnableNotifications");
-    btn.innerText = "BEKLEYİN...";
-
-    try {
-        // Mevcut app üzerinden değil, MERKEZ üzerinden mesajlaşmayı başlat
-        const currentMessaging = getMessaging(app); 
-
-        // Service Worker'ı MERKEZ kimliğiyle kaydet
-        const registration = await navigator.serviceWorker.register('./firebase-messaging-sw.js');
-        
-        const permission = await Notification.requestPermission();
-        
-        if (permission === "granted") {
-            // Token'ı MERKEZ'den al
-            const token = await getToken(currentMessaging, { 
-                vapidKey: MERKEZ_VAPID_KEY,
-                serviceWorkerRegistration: registration 
-            });
-
-            if (token) {
-                // Token'ı kullanıcı kaydına ekle
-                await update(ref(db, `users/${currentUser}`), {
-                    fcmToken: token,
-                    notificationsEnabled: true
-                });
-
-                btn.style.background = "var(--neon-green)";
-                btn.innerText = "BİLDİRİMLER AÇIK";
-                btn.disabled = true;
-                alert("SİSTEM AKTİF: Artık Merkez üzerinden bildirim alacaksınız!");
-                console.log("Yeni Uyumlu Token:", token);
-            }
-        } else {
-            btn.innerText = "İZİN REDDEDİLDİ";
-        }
-    } catch (error) {
-        console.error("Token Hatası:", error);
-        btn.innerText = "HATA!";
-        alert("KRİTİK HATA: " + error.message);
-    }
+// MERKEZ PROJE BİLGİLERİ
+const firebaseConfig = {
+  apiKey: "AIzaSyDCJWz80wWlzNhaM2Qnw_e5UkQoc8DoJaU",
+  authDomain: "merkez-14bf8.firebaseapp.com",
+  databaseURL: "https://merkez-14bf8-default-rtdb.firebaseio.com",
+  projectId: "merkez-14bf8",
+  storageBucket: "merkez-14bf8.firebasestorage.app",
+  messagingSenderId: "512943111807",
+  appId: "1:512943111807:web:675c769c7ede48216e494a",
+  measurementId: "G-BYS8FPKY7H"
 };
+
+// Firebase'i başlat
+firebase.initializeApp(firebaseConfig);
+const messaging = firebase.messaging();
+
+// Arka plan bildirim yönetimi
+messaging.onBackgroundMessage((payload) => {
+    console.log('[sw.js] Arka plan bildirimi:', payload);
+    
+    const notificationTitle = payload.notification?.title || "CGA GÜVENLİK SİSTEMİ";
+    const notificationOptions = {
+        body: payload.notification?.body || "Yeni bir olay raporlandı.",
+        icon: 'https://cemgaziarslannn-glitch.github.io/favicon.ico',
+        badge: 'https://cemgaziarslannn-glitch.github.io/favicon.ico',
+        vibrate: [200, 100, 200],
+        data: { url: payload.fcmOptions?.link || '/' }
+    };
+
+    return self.registration.showNotification(notificationTitle, notificationOptions);
+});
+
+// Bildirime tıklandığında siteyi aç
+self.addEventListener('notificationclick', (event) => {
+    event.notification.close();
+    event.waitUntil(clients.openWindow(event.notification.data.url));
+});
