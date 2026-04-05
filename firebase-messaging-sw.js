@@ -1,7 +1,7 @@
 importScripts('https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js');
 importScripts('https://www.gstatic.com/firebasejs/10.7.1/firebase-messaging-compat.js');
 
-// MERKEZ PROJE BİLGİLERİ
+// MERKEZ PROJE BİLGİLERİ (Burası Dokunulmaz)
 const firebaseConfig = {
   apiKey: "AIzaSyDCJWz80wWlzNhaM2Qnw_e5UkQoc8DoJaU",
   authDomain: "merkez-14bf8.firebaseapp.com",
@@ -13,28 +13,52 @@ const firebaseConfig = {
   measurementId: "G-BYS8FPKY7H"
 };
 
-// Firebase'i başlat
 firebase.initializeApp(firebaseConfig);
 const messaging = firebase.messaging();
 
-// Arka plan bildirim yönetimi
+// ARKA PLAN BİLDİRİM YÖNETİMİ
 messaging.onBackgroundMessage((payload) => {
-    console.log('[sw.js] Arka plan bildirimi:', payload);
+    console.log('[sw.js] Bildirim yakalandı:', payload);
     
-    const notificationTitle = payload.notification?.title || "CGA GÜVENLİK SİSTEMİ";
+    // Fırlatıcıdan gelen verileri çekiyoruz
+    const notificationTitle = payload.notification?.title || "🛡️ KOLART ONLİNE DENETİM";
     const notificationOptions = {
-        body: payload.notification?.body || "Yeni bir olay raporlandı.",
+        body: payload.notification?.body || "Yeni Olay var... Detaylar için dokunun.",
         icon: 'https://cemgaziarslannn-glitch.github.io/favicon.ico',
         badge: 'https://cemgaziarslannn-glitch.github.io/favicon.ico',
-        vibrate: [200, 100, 200],
-        data: { url: payload.fcmOptions?.link || '/' }
+        vibrate: [200, 100, 200, 100, 200],
+        tag: payload.notification?.tag || 'kolart-bildirim',
+        renotify: true,
+        data: { 
+            // Eğer fırlatıcıdan URL gelmezse varsayılan olarak ana siteye gitsin
+            url: payload.data?.url || 'https://www.denetim.online' 
+        }
     };
 
     return self.registration.showNotification(notificationTitle, notificationOptions);
 });
 
-// Bildirime tıklandığında siteyi aç
+// BİLDİRİME TIKLANDIĞINDA TETİKLENEN OLAY
 self.addEventListener('notificationclick', (event) => {
-    event.notification.close();
-    event.waitUntil(clients.openWindow(event.notification.data.url));
+    console.log('[sw.js] Bildirime tıklandı.');
+    event.notification.close(); // Bildirimi kapat
+    
+    // Gidilecek URL'yi alıyoruz (index.js'den gelen url)
+    const targetUrl = event.notification.data.url;
+    
+    event.waitUntil(
+        clients.matchAll({ type: 'window', includeUncontrolled: true }).then((windowClients) => {
+            // Eğer site zaten açıksa onu öne getir
+            for (var i = 0; i < windowClients.length; i++) {
+                var client = windowClients[i];
+                if (client.url === targetUrl && 'focus' in client) {
+                    return client.focus();
+                }
+            }
+            // Site açık değilse yeni sekmede/pencerede aç
+            if (clients.openWindow) {
+                return clients.openWindow(targetUrl);
+            }
+        })
+    );
 });
